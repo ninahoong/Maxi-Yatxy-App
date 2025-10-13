@@ -1,9 +1,9 @@
-// src/screens/GameScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { Text, View, StyleSheet, ScrollView } from 'react-native';
-import { useLocalSearchParams } from 'expo-router'; // <-- Importer hook for å lese URL-parametre
+import { useLocalSearchParams } from 'expo-router';
 import ScoreRow from '../components/ScoreRow';
 import CalculationRow from '../components/CalculationRow';
+import ActionButtonRow from '../components/ActionButtonRow';
 
 const upperSectionKeys = ['enere', 'toere', 'treere', 'firere', 'femmere', 'seksere'] as const;
 const lowerSectionKeys = [
@@ -13,12 +13,9 @@ const scoreKeys = [...upperSectionKeys, ...lowerSectionKeys];
 type ScoreKey = typeof scoreKeys[number];
 
 export default function GameScreen() {
-    // 1. LES ANTALL SPILLERE FRA NAVIGASJONEN
     const { players } = useLocalSearchParams();
-    // Konverter til tall, med 2 som standard hvis noe går galt
     const playerCount = parseInt(players as string || '2', 10);
 
-    // 2. INITIALISER STATE DYNAMISK BASERT PÅ playerCount
     const getInitialScores = () :Record<ScoreKey, string[]> => ({
         //Topseksjon
         enere: Array(playerCount).fill(''),
@@ -46,30 +43,44 @@ export default function GameScreen() {
     });
 
     const [scores, setScores] = useState<Record<ScoreKey, string[]>>(getInitialScores);
+
     const [upperSums, setUpperSums] = useState<(number | null)[]>(Array(playerCount).fill(null));
     const [bonuses, setBonuses] = useState<(number | null)[]>(Array(playerCount).fill(null));
+    const [lowerSums, setLowerSums] = useState<(number | null)[]>(Array(playerCount).fill(null));
+    const [totalScores, setTotalScores] = useState<(number | null)[]>(Array(playerCount).fill(null));
 
-    // 3. useEffect og annen logikk bruker nå den dynamiske playerCount
+    const [isUpperSumCalculated, setIsUpperSumCalculated] = useState(false);
+
     useEffect(() => {
+        const newTotalScores = Array(playerCount).fill(0);
+        for (let i = 0; i < playerCount; i++) {
+            const upperSum = upperSums[i] || 0;
+            const bonus = bonuses[i] || 0;
+            const lowerSum = lowerSums[i] || 0;
+            newTotalScores[i] = upperSum + bonus + lowerSum;
+        }
+        setTotalScores(newTotalScores);
+    }, [upperSums, bonuses, lowerSums, playerCount]); // Kjører når en av summene endres
+
+    // --- 4. NY FUNKSJON som kalles av knappen ---
+    const handleCalculateUpperSum = () => {
         const newSums = Array(playerCount).fill(0);
         const newBonuses = Array(playerCount).fill(0);
 
-        for (let playerIndex = 0; playerIndex < playerCount; playerIndex++) {
+        for (let i = 0; i < playerCount; i++) {
             let currentSum = 0;
-            scoreKeys.forEach(key => {
-                const value = scores[key][playerIndex];
-                currentSum += parseInt(value || '0', 10);
+            upperSectionKeys.forEach(key => {
+                currentSum += parseInt(scores[key][i] || '0', 10);
             });
-
-            newSums[playerIndex] = currentSum;
+            newSums[i] = currentSum;
             if (currentSum >= 84) {
-                newBonuses[playerIndex] = 100;
+                newBonuses[i] = 100;
             }
         }
-
         setUpperSums(newSums);
         setBonuses(newBonuses);
-    }, [scores, playerCount]); // Legg til playerCount som dependency
+        setIsUpperSumCalculated(true); // Avslør resultatet!
+    }; // Legg til playerCount som dependency
 
     const handleScoreChange = (rowKey: ScoreKey, playerIndex: number, value: string) => {
         const numericValue = value.replace(/[^0-9]/g, '');
@@ -80,11 +91,11 @@ export default function GameScreen() {
         setScores(newScores);
     };
 
+
     return (
         <ScrollView style={styles.container}>
             <Text style={styles.title}>Maxi Yatzy</Text>
 
-            {/* 4. RENDRE HEADER DYNAMISK */}
             <View style={styles.headerRow}>
                 <Text style={styles.headerLabel}>Poeng</Text>
                 {Array.from({ length: playerCount }).map((_, index) => (
@@ -103,26 +114,37 @@ export default function GameScreen() {
                 <ScoreRow label="Femmere" scores={scores.femmere} onScoreChange={(i, v) => handleScoreChange('femmere', i, v)} />
                 <ScoreRow label="Seksere" scores={scores.seksere} onScoreChange={(i, v) => handleScoreChange('seksere', i, v)} />
 
-                <CalculationRow label="Sum" values={upperSums} isBold />
-                <CalculationRow label="Bonus" values={bonuses} isBold />
+                {isUpperSumCalculated ? (
+                    <>
+                        <CalculationRow label="Sum" values={upperSums} isBold />
+                        <CalculationRow label="Bonus" values={bonuses} isBold />
+                    </>
+                ) : (
+                    <ActionButtonRow label="Beregn Sum (øvre)" onPress={handleCalculateUpperSum} />
+                )}
             </View>
 
             {/*Bunnseksjon*/}
             <View style={styles.section}>
                 <ScoreRow label="Ett par" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('ettPar', i, v)} />
                 <ScoreRow label="To par" scores={scores.toPar} onScoreChange={(i, v) => handleScoreChange('toPar', i, v)} />
-                <ScoreRow label="Tre par" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('trePar', i, v)} />
+                <ScoreRow label="Tre par" scores={scores.trePar} onScoreChange={(i, v) => handleScoreChange('trePar', i, v)} />
                 <ScoreRow label="Tre like" scores={scores.treLike} onScoreChange={(i, v) => handleScoreChange('treLike', i, v)} />
                 <ScoreRow label="Fire like" scores={scores.fireLike} onScoreChange={(i, v) => handleScoreChange('fireLike', i, v)} />
-                <ScoreRow label="Fem like" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('femLike', i, v)} />
+                <ScoreRow label="Fem like" scores={scores.femLike} onScoreChange={(i, v) => handleScoreChange('femLike', i, v)} />
                 <ScoreRow label="Liten straight" scores={scores.litenStraight} onScoreChange={(i, v) => handleScoreChange('litenStraight', i, v)} />
                 <ScoreRow label="Stor straight" scores={scores.storStraight} onScoreChange={(i, v) => handleScoreChange('storStraight', i, v)} />
-                <ScoreRow label="Full straight" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('fullStraight', i, v)} />
-                <ScoreRow label="Hytte" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('hytte', i, v)} />
+                <ScoreRow label="Full straight" scores={scores.fullStraight} onScoreChange={(i, v) => handleScoreChange('fullStraight', i, v)} />
+                <ScoreRow label="Hytte" scores={scores.hytte} onScoreChange={(i, v) => handleScoreChange('hytte', i, v)} />
                 <ScoreRow label="Hus" scores={scores.hus} onScoreChange={(i, v) => handleScoreChange('hus', i, v)} />
-                <ScoreRow label="Tårn" scores={scores.ettPar} onScoreChange={(i, v) => handleScoreChange('tarn', i, v)} />
+                <ScoreRow label="Tårn" scores={scores.tarn} onScoreChange={(i, v) => handleScoreChange('tarn', i, v)} />
                 <ScoreRow label="Sjanse" scores={scores.sjanse} onScoreChange={(i, v) => handleScoreChange('sjanse', i, v)} />
                 <ScoreRow label="Yatzy" scores={scores.yatzy} onScoreChange={(i, v) => handleScoreChange('yatzy', i, v)} />
+
+                <CalculationRow label="Sum (nedre)" values={lowerSums} isBold />
+                <View style={styles.totalSection}>
+                    <CalculationRow label="TOTALT" values={totalScores} isBold />
+                </View>
             </View>
         </ScrollView>
     );
@@ -136,4 +158,5 @@ const styles = StyleSheet.create({
     headerRow: { flexDirection: 'row', alignItems: 'center', paddingBottom: 5, borderBottomWidth: 2, borderBottomColor: '#333', paddingLeft: 8, },
     headerLabel: { width: 100, fontSize: 16, fontWeight: 'bold', },
     headerPlayer: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 'bold', },
+    totalSection: { marginTop: 10, borderTopWidth: 2, borderTopColor: '#333',},
 });
