@@ -7,7 +7,7 @@ export default function LoginScreen() {
             <Text style={styles.title}>Velkommen til Maxi Yatzy</Text>
 
             {/* Link-komponenten navigerer til ruten definert av 'href' */}
-            <Link href="/game" asChild>
+            <Link href="/setup" asChild>
                 <TouchableOpacity style={styles.button}>
                     <Text style={styles.buttonText}>Start Nytt Spill</Text>
                 </TouchableOpacity>

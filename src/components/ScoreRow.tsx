@@ -37,20 +37,22 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
+        paddingLeft: 8, // Matcher header
     },
     label: {
-        flex: 1.5, // Må matche headerLabel i GameScreen
+        width: 100, // Matcher header
         fontSize: 18,
     },
     inputContainer: {
-        flex: 1, // Må matche headerPlayer i GameScreen
+        flex: 1, // Matcher header
         alignItems: 'center',
+        paddingHorizontal: 2, // Gir litt pusterom mellom boksene
     },
     input: {
         borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 5,
-        width: '90%', // Bruker prosent for å være fleksibel
+        width: '100%', // Fyller hele plassen den får av inputContainer
         textAlign: 'center',
         fontSize: 18,
         paddingVertical: 5,
