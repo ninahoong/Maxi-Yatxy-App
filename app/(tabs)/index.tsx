@@ -1,98 +1,148 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { Dice } from '@/components/Dice';
+import { Scoreboard } from '@/components/Scoreboard';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useThemeColor } from '@/hooks/use-theme-color';
+import { useYatzyGame } from '@/hooks/useYatzyGame';
+import React, { useState } from 'react';
+import { Alert, Pressable, SafeAreaView, StyleSheet, View } from 'react-native';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { dice, rollsLeft, scores, gameOver, rollDice, toggleDieHold, recordScore, resetGame } = useYatzyGame();
+  const [isRolling, setIsRolling] = useState(false);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const backgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#151718' }, 'background');
+  const buttonBgColor = useThemeColor({ light: '#0a7ea4', dark: '#2f95dc' }, 'tint');
+  const disabledButtonBgColor = useThemeColor({ light: '#999999', dark: '#555555' }, 'background');
+
+  const onRollDice = () => {
+    if (rollsLeft > 0) {
+      setIsRolling(true);
+      setTimeout(() => {
+        rollDice();
+        setIsRolling(false);
+      }, 300); // 300ms matches the animation duration roughly
+    }
+  }
+
+  const handleReset = () => {
+    Alert.alert(
+      "Reset Game",
+      "Are you sure you want to start a new game?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Yes", onPress: resetGame }
+      ]
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      <View style={styles.header}>
+        <ThemedText type="title">Maxi Yatzy</ThemedText>
+        <Pressable onPress={handleReset} style={styles.resetButton}>
+          <ThemedText style={styles.resetText}>Restart</ThemedText>
+        </Pressable>
+      </View>
+
+      <View style={styles.scoreboardContainer}>
+        <Scoreboard
+          scores={scores}
+          rollsLeft={rollsLeft}
+          onScoreSelect={recordScore}
+        />
+      </View>
+
+      <View style={styles.gameBoard}>
+        <View style={styles.diceContainer}>
+          {dice.map((die, index) => (
+            <Dice
+              key={index}
+              value={die.value}
+              isHeld={die.isHeld}
+              isRolling={isRolling}
+              onPress={() => toggleDieHold(index)}
+              disabled={rollsLeft === 3 || gameOver || isRolling}
+            />
+          ))}
+        </View>
+
+        <View style={styles.controlsContainer}>
+          <ThemedText style={styles.rollsText}>
+            Rolls Left: {rollsLeft}
+          </ThemedText>
+          <Pressable
+            style={[
+              styles.rollButton,
+              { backgroundColor: (rollsLeft === 0 || gameOver || isRolling) ? disabledButtonBgColor : buttonBgColor }
+            ]}
+            onPress={onRollDice}
+            disabled={rollsLeft === 0 || gameOver || isRolling}
+          >
+            <ThemedText style={styles.rollButtonText}>
+              {gameOver ? 'Game Over' : rollsLeft === 3 ? 'Start Round' : 'Roll Dice'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  resetButton: {
+    padding: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  resetText: {
+    color: '#D32F2F',
+    fontWeight: 'bold',
+  },
+  scoreboardContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  gameBoard: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  diceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 20,
+  },
+  controlsContainer: {
+    alignItems: 'center',
+    gap: 15,
+  },
+  rollsText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  rollButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 24,
+    width: '100%',
+    alignItems: 'center',
+  },
+  rollButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
