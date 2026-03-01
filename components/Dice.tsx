@@ -1,7 +1,6 @@
-import { useThemeColor } from '@/hooks/use-theme-color';
 import { DiceValue } from '@/types/yatzy';
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
     Easing,
     useAnimatedStyle,
@@ -10,7 +9,6 @@ import Animated, {
     withSequence,
     withTiming,
 } from 'react-native-reanimated';
-import { ThemedText } from './themed-text';
 
 interface DiceProps {
     value: DiceValue;
@@ -24,20 +22,9 @@ export function Dice({ value, isHeld, isRolling, onPress, disabled = false }: Di
     const rotation = useSharedValue(0);
     const scale = useSharedValue(1);
 
-    const backgroundColor = useThemeColor(
-        { light: isHeld ? '#4CAF50' : '#FFFFFF', dark: isHeld ? '#2E7D32' : '#1E1E1E' },
-        'background'
-    );
-
-    const textColor = useThemeColor(
-        { light: isHeld ? '#FFFFFF' : '#000000', dark: isHeld ? '#FFFFFF' : '#FFFFFF' },
-        'text'
-    );
-
-    const borderColor = useThemeColor(
-        { light: isHeld ? '#388E3C' : '#E0E0E0', dark: isHeld ? '#1B5E20' : '#333333' },
-        'border'
-    );
+    const backgroundColor = isHeld ? '#4CAF50' : '#FFFFFF';
+    const textColor = isHeld ? '#FFFFFF' : '#000000';
+    const borderColor = isHeld ? '#388E3C' : '#E0E0E0';
 
     useEffect(() => {
         if (isRolling && !isHeld) {
@@ -75,9 +62,9 @@ export function Dice({ value, isHeld, isRolling, onPress, disabled = false }: Di
                     { backgroundColor, borderColor },
                 ]}>
                 <View style={styles.center}>
-                    <ThemedText style={[styles.diceText, { color: textColor }]}>
+                    <Text style={[styles.diceText, { color: textColor }]}>
                         {value}
-                    </ThemedText>
+                    </Text>
                 </View>
             </Pressable>
         </Animated.View>

@@ -4,7 +4,8 @@ import { DiceValue, DieState, GameState, ScoreCategory, Scores } from '../types/
 const NUM_DICE = 6;
 const MAX_ROLLS = 3;
 
-const INITIAL_SCORES: Scores = {
+// A helper to generate a clean score sheet for a player
+export const createInitialScores = (): Scores => ({
     ones: null,
     twos: null,
     threes: null,
@@ -22,15 +23,23 @@ const INITIAL_SCORES: Scores = {
     fullHouse: null,
     chance: null,
     maxiYatzy: null,
-};
+});
 
 const INITIAL_DICE: DieState[] = Array(NUM_DICE).fill({ value: 1, isHeld: false });
 
-export const useYatzyGame = () => {
-    const [gameState, setGameState] = useState<GameState>({
+export interface MultiPlayerGameState extends Omit<GameState, 'scores'> {
+    playerCount: number;
+    currentPlayerIndex: number;
+    scores: Scores[]; // Array of score sheets, one per player
+}
+
+export const useYatzyGame = (playerCount: number = 2) => {
+    const [gameState, setGameState] = useState<MultiPlayerGameState>({
         dice: INITIAL_DICE,
         rollsLeft: MAX_ROLLS,
-        scores: { ...INITIAL_SCORES },
+        playerCount,
+        currentPlayerIndex: 0,
+        scores: Array(playerCount).fill(null).map(() => createInitialScores()),
         gameOver: false,
     });
 
@@ -59,33 +68,53 @@ export const useYatzyGame = () => {
         });
     }, [gameState.rollsLeft]);
 
-    const recordScore = useCallback((category: ScoreCategory) => {
-        // Require at least one roll to score
-        if (gameState.scores[category] !== null || gameState.rollsLeft === MAX_ROLLS) return;
+    const recordScore = useCallback((category: ScoreCategory, forPlayerIndex: number = gameState.currentPlayerIndex) => {
+        // Basic validation: user must have rolled at least once, and the chosen category must be empty for that player
+        if (gameState.scores[forPlayerIndex][category] !== null || gameState.rollsLeft === MAX_ROLLS) return;
+
+        // You can usually only score for yourself, but we leave the argument open just in case
+        if (forPlayerIndex !== gameState.currentPlayerIndex) return;
 
         setGameState((prevState) => {
             const score = calculateScore(prevState.dice, category);
-            const newScores = { ...prevState.scores, [category]: score };
-            const isGameOver = Object.values(newScores).every((s) => s !== null);
+
+            // Update that player's score sheet
+            const newScores = [...prevState.scores];
+            newScores[forPlayerIndex] = { ...newScores[forPlayerIndex], [category]: score };
+
+            // Determine the next player
+            let nextPlayerIndex = prevState.currentPlayerIndex + 1;
+            let nextIsGameOver = false;
+
+            if (nextPlayerIndex >= prevState.playerCount) {
+                // We've wrapped around to player 1. Are they done?
+                nextPlayerIndex = 0;
+
+                // The game is over if Player 0's score sheet is full after this round
+                nextIsGameOver = Object.values(newScores[0]).every((s) => s !== null);
+            }
 
             return {
                 ...prevState,
                 scores: newScores,
                 rollsLeft: MAX_ROLLS,
                 dice: INITIAL_DICE,
-                gameOver: isGameOver,
+                currentPlayerIndex: nextPlayerIndex,
+                gameOver: nextIsGameOver,
             };
         });
-    }, [gameState.scores, gameState.rollsLeft]);
+    }, [gameState.scores, gameState.rollsLeft, gameState.currentPlayerIndex]);
 
     const resetGame = useCallback(() => {
         setGameState({
             dice: INITIAL_DICE,
             rollsLeft: MAX_ROLLS,
-            scores: { ...INITIAL_SCORES },
+            playerCount: gameState.playerCount,
+            currentPlayerIndex: 0,
+            scores: Array(gameState.playerCount).fill(null).map(() => createInitialScores()),
             gameOver: false,
         });
-    }, []);
+    }, [gameState.playerCount]);
 
     return {
         ...gameState,
@@ -96,7 +125,7 @@ export const useYatzyGame = () => {
     };
 };
 
-function calculateScore(diceState: DieState[], category: ScoreCategory): number {
+export function calculateScore(diceState: DieState[], category: ScoreCategory): number {
     const dice = diceState.map((d) => d.value);
     const counts = new Map<number, number>();
     dice.forEach((val) => counts.set(val, (counts.get(val) || 0) + 1));
